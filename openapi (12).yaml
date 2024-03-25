@@ -1,0 +1,737 @@
+openapi: 3.0.0
+info:
+  title: Online Auction System
+  version: '1.0'
+  description: A online auctions platform.
+servers:
+  - url: 'https://api.onlineauction.ru/v1/'
+    description: Production server (uses live data)
+  - url: 'https://sandbox-api.onlineauction.ru:8443/v1/'
+    description: Sandbox server (uses test data)
+tags:
+  - name: Items
+    description: Управление коллекцией товаров
+  - name: Auction
+    description: Проведение аукциона
+  - name: Delete
+    description: Методы удаления 
+paths:
+  /sellers/{sellerId}/auctions:
+    get:
+      tags:
+        - Auction
+      summary: Получение списка аукционов по продавцу, товару, статусу и покупателю
+      parameters:
+        - $ref: '#/components/parameters/sellerId'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/itemId'
+        - $ref: '#/components/parameters/auctionStatus'
+      operationId: getAuctions
+      responses:
+        '200':
+          $ref: '#/components/responses/ActionListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Auction
+      summary: Создание нового аукциона
+      parameters:
+        - $ref: '#/components/parameters/sellerId'
+      operationId: createAuction
+      requestBody:
+        $ref: '#/components/requestBodies/AuctionRequestBody'
+      responses:
+        '201':
+          description: Created
+          headers:
+            location:
+              description: URI созданного аукциона
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/responses/ActionListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /sellers/{sellerId}/items:
+    get:
+      tags:
+        - Items
+      summary: Получение списка товаров
+      parameters:
+        - $ref: '#/components/parameters/sellerId'
+        - $ref: '#/components/parameters/LimitParam'
+        - $ref: '#/components/parameters/OffsetParam'
+        - $ref: '#/components/parameters/auctionId'
+        - $ref: '#/components/parameters/itemStatus'
+      operationId: getItems
+      responses:
+        '200':
+          $ref: '#/components/responses/ItemListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      tags:
+        - Items
+      summary: Добавление товаров в коллекцию
+      parameters:
+        - $ref: '#/components/parameters/sellerId'
+      operationId: createItem
+      requestBody:
+        $ref: '#/components/requestBodies/ItemRequestBody'
+      responses:
+        '201':
+          description: Created
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      tags:
+        - Items
+      summary: Добавление товаров в коллекцию
+      parameters:
+        - $ref: '#/components/parameters/sellerId'
+      operationId: updateItem
+      requestBody:
+        $ref: '#/components/requestBodies/ItemUpdateRequestBody'
+      responses:
+        '200':
+          $ref: '#/components/responses/ItemListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /sellers/{sellerId}/items/delete:
+    post:
+      tags:
+        - Delete
+      summary: Удаление нескольких товаров из коллекции
+      parameters:
+        - $ref: '#/components/parameters/sellerId'
+      operationId: deleteItems
+      requestBody:
+        $ref: '#/components/requestBodies/ItemsDeleteRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/ItemsListDeleteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /sellers/{sellerId}/items/{itemsId}:
+    delete:
+      tags:
+        - Delete
+      summary: Удаление товара из коллекции
+      parameters:
+        - $ref: '#/components/parameters/sellerId'
+        - $ref: '#/components/parameters/itemsId'
+      responses:
+        '200':
+          description: OK
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+      operationId: deleteItemFromCollection
+components:
+  schemas:
+    ItemListResponseDto:
+      type: object
+      required:
+        - id
+        - name
+        - itemStatus
+        - startingPrice
+        - sellerId
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Уникальный идентификатор товара
+        name:
+          type: string
+          description: Название товара
+        description:
+          type: string
+          description: Описание товара
+        itemStatus:
+          type: string
+          description: Статус товара
+          enum:
+            - NEW
+            - IN AUCTION
+            - BLOCKED
+            - SOLD
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemTag'
+        startingPrice:
+          type: number
+          format: float
+          description: Начальная цена товара
+        sellerId:
+          type: integer
+          format: int64
+          description: Идентификатор продавца товара
+        image:
+          type: string
+          format: url
+          description: URL сслыка на изображение товара
+    ItemTag:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Уникальный идентификатор метки товара
+          example: 123
+        name:
+          type: string
+          description: Название метки товара
+          example: antique
+      required:
+        - id
+        - name
+    Bids:
+      type: array
+      description: Массив объектов со ставками
+      items:
+        type: object
+        description: Объект со ставками
+        required:
+          - id
+          - buyerId
+          - auctionId
+          - amount
+          - timestamp
+        properties:
+          id:
+            type: integer
+            format: int64
+            description: Идентификатор ставки
+          buyerId:
+            type: integer
+            format: int64
+            description: Идентификатор покупателя
+          auctionId:
+            type: integer
+            format: int64
+            description: Идентификатор аукциона
+          amount:
+            type: number
+            description: Сумма ставки
+          timestamp:
+            type: string
+            format: dateTime
+            description: Дата и время ставки
+      example:
+        - id: 1
+          buyerId: 123
+          auctionId: 456
+          amount: 100
+          timestamp: '2022-05-01T10:00:00Z'
+        - id: 2
+          buyerId: 456
+          auctionId: 789
+          amount: 150
+          timestamp: '2022-05-02T14:00:00Z'
+        - id: 3
+          buyerId: 789
+          auctionId: 123
+          amount: 200
+          timestamp: '2022-05-03T18:00:00Z'
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Описание ошибки
+        code:
+          type: integer
+          description: Код ошибки
+      required:
+        - message
+        - code
+      example:
+        message: Invalid input.
+        code: 400
+    ActionListResponseDto:
+      type: object
+      required:
+        - id
+        - title
+        - auctionStatus
+        - startTime
+        - endTime
+        - startingPrice
+        - highestBid
+        - sellerId
+        - item
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Уникальный идентификатор для аукциона
+        title:
+          type: string
+          description: Заголовок аукциона
+        description:
+          type: string
+          description: Описание аукциона
+        auctionStatus:
+          type: string
+          description: Статус аукциона
+          enum:
+            - NEW
+            - IN PROGRESS
+            - DONE
+        startTime:
+          type: string
+          format: dateTime
+          description: Время начала аукциона
+        endTime:
+          type: string
+          format: date-time
+          description: Время окончания аукциона
+        startingPrice:
+          type: number
+          description: Начальная стоимость лота аукциона
+          format: float
+        highestBid:
+          $ref: '#/components/schemas/Bids'
+        sellerId:
+          $ref: '#/components/schemas/Seller'
+        item:
+          $ref: '#/components/schemas/ItemListResponseDto'
+        bids:
+          $ref: '#/components/schemas/Bids'
+    Seller:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Уникальный идентификатор продавца.
+        name:
+          type: string
+          description: Имя продавца.
+        email:
+          type: string
+          format: email
+          description: Email адрес продавца.
+        phone:
+          type: string
+          description: Номер телефона продавца.
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemListResponseDto'
+          description: Коллекция товаров продавца.
+      required:
+        - id
+        - name
+        - email
+        - phone
+    ItemRequestDto:
+      type: object
+      description: Тело запроса добавления товара в коллекцию
+      required:
+        - sellerId
+      properties:
+        sellerId:
+          type: integer
+          format: int64
+          description: Идентификатор продавца
+        name:
+          type: string
+          description: Название товара
+        description:
+          type: string
+          description: Описание товара
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemTag'
+        startingPrice:
+          type: number
+          format: float
+          description: Начальная цена товара
+        image:
+          type: string
+          format: url
+          description: URL сслыка на изображение товара
+    ItemUpdateRequestDto:
+      type: object
+      description: Тело запроса добавления товара в коллекцию
+      required:
+        - sellerId
+      properties:
+        sellerId:
+          type: integer
+          format: int64
+          description: Идентификатор продавца
+        name:
+          type: string
+          description: Название товара
+        description:
+          type: string
+          description: Описание товара
+        tags:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemTag'
+        startingPrice:
+          type: number
+          format: float
+          description: Начальная цена товара
+        image:
+          type: string
+          format: url
+          description: URL сслыка на изображение товара
+    ItemsDeleteRequestDto:
+      type: object
+      description: Массив на удаление нескольких товаров
+      required:
+        - itemIds
+      properties:
+        itemIds:
+          type: array
+          description: Массив идентификаторов товаров через ','
+          items:
+            type: integer
+            format: int64
+    ItemListDeleteResponseDto:
+      type: object
+      description: Объект ответа на удаление нескольких товаров
+      properties:
+        successful:
+          type: array
+          description: Массив itemId успешно удаленных товаров
+          items:
+            type: integer
+            format: int64
+        error:
+          type: array
+          description: Массив itemId, которые не удалось удалить
+          items:
+            type: integer
+            format: int64
+  parameters:
+    LimitParam:
+      name: limit
+      in: query
+      description: Максимальное количество возвращаемых результатов
+      required: false
+      schema:
+        type: number
+        example: 1000
+    OffsetParam:
+      name: offset
+      in: query
+      description: 'Количество результатов, которые необходимо пропустить перед возвратом'
+      required: false
+      schema:
+        type: number
+        example: 0
+    ItemIdParam:
+      name: item_id
+      in: path
+      description: Уникальный идентификатор товара
+      required: true
+      schema:
+        type: integer
+    ItemNameQueryParam:
+      name: name
+      in: query
+      description: Название товара.
+      required: false
+      schema:
+        type: string
+    ItemTagQueryParam:
+      name: tags
+      in: query
+      description: 'Список тегов, разделенных запятыми, для фильтрации по ним'
+      required: false
+      schema:
+        type: string
+    BidIdParam:
+      name: bid_id
+      in: path
+      description: Уникальный идентификатор ставки
+      required: true
+      schema:
+        type: integer
+    sellerId:
+      name: sellerId
+      in: path
+      description: Идентификатор продавца
+      required: true
+      schema:
+        type: integer
+        format: int64
+        nullable: false
+    itemId:
+      name: itemId
+      in: query
+      description: Идентификатор товара
+      required: false
+      schema:
+        type: integer
+        format: int64
+        nullable: false
+    itemsId:
+      name: itemsId
+      in: path
+      description: Идентификатор товара
+      required: true
+      schema:
+        type: integer
+        format: int64
+        nullable: false
+    auctionStatus:
+      name: auctionStatus
+      in: query
+      description: Статус аукциона
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - NEW
+            - IN PROGRESS
+            - DONE
+    auctionId:
+      name: auctionId
+      in: query
+      description: Идентификатор аукциона
+      required: false
+      schema:
+        type: integer
+        format: int64
+        nullable: false
+    itemStatus:
+      name: itemStatus
+      in: query
+      description: Статус товара
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          enum:
+            - NEW
+            - IN AUCTION
+            - BLOCKED
+            - SOLD
+  requestBodies:
+    AuctionRequestBody:
+        description: Тело запроса для создания или обновления аукциона
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActionListResponseDto'
+    ItemRequestBody:
+        description: Тело запроса для создания аукциона
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemRequestDto'
+            examples:
+              complex:
+                $ref: '#/components/examples/ItemRequestExample'
+    ItemUpdateRequestBody:
+        description: Тело запроса на обновление данных товара
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ItemUpdateRequestDto'
+            examples:
+              complex:
+                $ref: '#/components/examples/ItemUpdateRequestExample'
+    ItemsDeleteRequest:
+      description: Запрос на удаление нескольких товаров из коллекции
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ItemsDeleteRequestDto'
+          examples:
+            complex:
+              $ref: '#/components/examples/ItemsDeleteRequestExample'
+  responses:
+    ActionListResponse:
+      description: Список аукционов
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ActionListResponseDto'
+          examples:
+            complex:
+              $ref: '#/components/examples/ActionListResponseExample'
+    ItemListResponse:
+      description: Список товаров
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ItemListResponseDto'
+          examples:
+            complex:
+              $ref: '#/components/examples/ItemListResponseExample'
+    ItemsListDeleteResponse:
+      description: Ответ получения списка успешно/неуспешно удаленных товаров из коллекции
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ItemListDeleteResponseDto'
+          examples:
+            complex:
+              $ref: '#/components/examples/ItemListDeleteResponseExample'
+    Error:
+      description: Ошибка сервера.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+      headers:
+        x-error-message:
+          description: Описание ошибки.
+          schema:
+            type: string
+        x-error-code:
+          description: Код ошибки.
+          schema:
+            type: integer
+    BadRequest:
+      description: Запрос был недействительным или не был понятен серверу.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Запрашиваемый ресурс не найден.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    InternalServerError:
+      description: На сервере возникла непредвиденная ошибка.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  examples:
+    ActionListResponseExample:
+      summary: Тело ответа со списком аукционов
+      description: Пример тела ответа со списком аукционов
+      value:
+        - id: 654321
+          title: 'Древняя китайская ваза династии Мин'
+          description: 'Древнекитайская ваза династии Мин в хорошем состоянии'
+          auctionStatus: 'IN PROGRESS'
+          startTime: '2023-04-01T00:00:00Z'
+          endTime: '2023-04-05T00:00:00Z'
+          startingPrice: 500
+          highestBid:
+            bid:
+              id: 123
+              buyerId: 456
+              auctionId: 789
+              amount: 100
+              timestamp: '2022-04-01T14:30:00Z'
+          seller:
+            id: 123
+            name: 'Джеки Чан'
+            email: 'chan@example.ch'
+          item:
+            id: 456
+            name: 'Древняя китайская ваза династии Мин'
+            description: 'Древнекитайская ваза династии Мин в хорошем состоянии'
+            tags:
+              - 'антиквариат'
+              - 'ваза'
+              - 'Китай'
+              - 'династия Мин'
+            image_url: 'https://example.com/ancient-vase.jpg'
+          bids:
+            bid:
+              id: 345
+              buyerId: 654
+              auctionId: 234
+            amount: 150
+            timestamp: '2022-04-01T14:30:00Z'
+    ItemListResponseExample:
+      summary: Тело ответа со списком товаров
+      description: Пример тела ответа со списком товаров
+      value:
+        - id: 123
+          name: 'Антикварный стул'
+          description: 'Красивый антикварный стул из древесины дуба'
+          itemStatus: 'NEW'
+          tags:
+            - 'antique'
+            - 'furniture'
+            - 'chair'
+          starting_price: 100
+          seller: 456
+          image: 'https://example.com/images/chair.jpg'
+    ItemRequestExample:
+      summary: Тело запроса на добавление товара в коллекцию
+      description: Пример тела запроса на добавление товара в коллекцию
+      value:
+        - id: 123
+          name: 'Антикварный стул'
+          description: 'Красивый антикварный стул из древесины дуба'
+          tags:
+            - 'antique'
+            - 'furniture'
+            - 'chair'
+          starting_price: 100.00
+          seller: 456
+          image: 'https://example.com/images/chair.jpg'
+    ItemUpdateRequestExample:
+      summary: Тело запроса на обновление данных товара
+      description: Пример тела запроса на обновление данных товара
+      value:
+        - id: 123
+          name: 'Антикварный стул'
+          description: 'Красивый антикварный стул из древесины дуба'
+          itemStatus: 'NEW'
+          tags:
+            - 'antique'
+            - 'furniture'
+            - 'chair'
+          starting_price: 100
+          seller: 456
+          image: 'https://example.com/images/chair.jpg'
+    ItemsDeleteRequestExample:
+      summary: Тело запроса удаления нескольких товаров из коллекции
+      description: Пример тела запроса удаления нескольких товаров из коллекции
+      value:
+        itemIds: [
+          12345678,
+          99877664
+          ]
+    ItemListDeleteResponseExample:
+      summary: Тело ответа удаления нескольких товаров из коллекции
+      description: Пример тела ответа удаления нескольких товаров из коллекции
+      value:
+        successful:
+          - 123456
+        error:
+          - 987654
