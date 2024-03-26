@@ -98,7 +98,7 @@ paths:
     put:
       tags:
         - Items
-      summary: Добавление товаров в коллекцию
+      summary: Изменение товара в коллекции
       parameters:
         - $ref: '#/components/parameters/sellerId'
       operationId: updateItem
